@@ -13,9 +13,24 @@ class Buffer(object):
 
         # Vertex Buffer Object
         self.VBO = glGenBuffers(1)
+        
+        # Bind and upload data immediately
+        glBindBuffer(GL_ARRAY_BUFFER, self.VBO)
+        glBufferData(GL_ARRAY_BUFFER, self.vertexBuffer.nbytes, self.vertexBuffer, GL_STATIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
 
-        # Vertex Array Object
-        self.VAO = glGenVertexArrays(1)
+    def Use(self, attribNumber, size):
+        glBindBuffer(GL_ARRAY_BUFFER, self.VBO)
+
+        # Atributo
+        glVertexAttribPointer(attribNumber,         # Attribute Number
+                              size,                 # Size
+                              GL_FLOAT,             # Type
+                              GL_FALSE,             # Is it normalized?
+                              0,                    # Stride
+                              ctypes.c_void_p(0))   # Offset
+
+        glEnableVertexAttribArray(attribNumber)
 
     def Render(self):
         glBindBuffer(GL_ARRAY_BUFFER, self.VBO)
