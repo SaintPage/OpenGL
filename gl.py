@@ -69,6 +69,14 @@ class Renderer(object):
         # Limpiar UNA SOLA VEZ al inicio
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
+        # Render skybox primero con depth en modo fondo
+        if self.skybox is not None:
+            glDepthFunc(GL_LEQUAL)
+            glDepthMask(GL_FALSE)
+            self.skybox.Render()
+            glDepthMask(GL_TRUE)
+            glDepthFunc(GL_LESS)
+        
         # NO llamar camera.Update() - la viewMatrix ya está configurada en el loop principal
 
         glUseProgram(self.activeShader)
@@ -102,12 +110,11 @@ class Renderer(object):
 
         for obj in self.scene:
             if self.activeShader is not None:
-                glUniformMatrix4fv(glGetUniformLocation(self.activeShader, "modelMatrix"),
-                                  1, GL_FALSE, glm.value_ptr(obj.GetModelMatrix()))
+                modelMatrix = obj.GetModelMatrix()
+                glUniformMatrix4fv(
+                    glGetUniformLocation(self.activeShader, "modelMatrix"),
+                    1,
+                    GL_FALSE,
+                    glm.value_ptr(modelMatrix)
+                )
             obj.Render()
-        
-        # Render skybox LAST (as background)
-        if self.skybox is not None:
-            glDepthFunc(GL_LEQUAL)  # Sky box debe pasar depth test cuando es igual
-            self.skybox.Render()
-            glDepthFunc(GL_LESS)    # Restaurar para modelos normales

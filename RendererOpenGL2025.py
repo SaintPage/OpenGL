@@ -2,7 +2,7 @@ import pygame
 import pygame.display
 from pygame.locals import *
 from math import sin, cos, radians
-from OpenGL.GL import glFlush, glGetError, GL_NO_ERROR
+from OpenGL.GL import glFlush, glGetError, glFinish, GL_NO_ERROR
 
 import glm
 
@@ -36,12 +36,18 @@ rend.ambientLight = 0.8  # Más luz ambiental para ver mejor
 currVertexShader = vertex_shader
 currFragmentShader = fragment_shader
 
+orbitDistance = 5.0  # Distancia radial de la cámara respecto al centro
+
 rend.SetShaders(currVertexShader, currFragmentShader)
 
 # Camera setup
-rend.camera.position = glm.vec3(0, 0, 3)  # Posición inicial de la cámara
+rend.camera.position = glm.vec3(0, 1.2, orbitDistance)
+rend.camera.viewMatrix = glm.lookAt(
+    rend.camera.position,
+    glm.vec3(0, 0.5, 0),
+    glm.vec3(0, 1, 0)
+)
 
-# Create skybox
 skyboxTextures = ["skybox/right.jpg", 
                   "skybox/left.jpg", 
                   "skybox/top.jpg", 
@@ -51,20 +57,21 @@ skyboxTextures = ["skybox/right.jpg",
 rend.CreateSkybox(skyboxTextures)
 print("✓ Skybox cargado exitosamente!")
 
-# Load Penguin model
+# Load Porsche model
 try:
-    penguin = Model("models/PenguinBaseMesh.obj")
+    car = Model("models/Porsche_911_GT2.obj")
     
-    # Cargar textura del pingüino
-    penguin.AddTexture("models/Penguin Diffuse Color.png")
+    # Cargar textura principal del auto
+    car.AddTexture("models/car/0000.BMP")
     
     # Ajustar posición y escala
-    penguin.position = glm.vec3(0, 0, 0)  # Centro
-    penguin.rotation.y = 0  # Sin rotación inicial
-    penguin.scale = glm.vec3(1.0, 1.0, 1.0)  # Tamaño normalizado
+    car.position = glm.vec3(0, -0.2, 0)
+    car.rotation.y = 180  # Que mire hacia la cámara al iniciar
+    car.scale = glm.vec3(1.0, 1.0, 1.0)
     
-    rend.scene.append(penguin)
-    print("✓ Pingüino cargado exitosamente!")
+    rend.scene.append(car)
+    print("✓ Porsche 911 GT2 cargado exitosamente!")
+    print(f"  Triángulos del modelo: {car.vertexCount // 3}")
     print("  Usa la rueda del mouse para hacer zoom")
     print("  Presiona ESPACIO para auto-rotar")
 except Exception as e:
@@ -112,7 +119,7 @@ while isRunning:
             isRunning = False
         
         elif event.type == pygame.MOUSEWHEEL:
-            rend.camera.position.z -= event.y * deltaTime * 10
+            orbitDistance = max(1.5, min(25.0, orbitDistance - event.y * 0.5))
         
         elif event.type == pygame.KEYDOWN:
             # Fragment shader selection
@@ -189,16 +196,19 @@ while isRunning:
     
     # Update camera position (orbit around model)
     if len(rend.scene) > 0:
-        # Órbita alrededor del modelo
-        distance = 5.0  # Distancia consistente con posición inicial
-        rend.camera.position.x = sin(radians(camAngle)) * distance
-        rend.camera.position.y = 1.0
-        rend.camera.position.z = cos(radians(camAngle)) * distance
-        
-        # Calcular viewMatrix directamente sin usar LookAt
+        distance = max(1.5, min(25.0, orbitDistance))
+        target = rend.scene[0].position
+        targetFocus = glm.vec3(target.x, target.y + 0.5, target.z)
+
+        rend.camera.position = glm.vec3(
+            targetFocus.x + sin(radians(camAngle)) * distance,
+            targetFocus.y + 0.8,
+            targetFocus.z + cos(radians(camAngle)) * distance
+        )
+
         rend.camera.viewMatrix = glm.lookAt(
-            rend.camera.position, 
-            rend.scene[0].position, 
+            rend.camera.position,
+            targetFocus,
             glm.vec3(0, 1, 0)
         )
         
@@ -210,8 +220,13 @@ while isRunning:
     rend.Render()
     
     # Asegurar que todo el rendering se complete
-    from OpenGL.GL import glFinish
     glFinish()
+
+    err = glGetError()
+    if err != GL_NO_ERROR:
+        print(f"GL ERROR: {err}")
+    if err != GL_NO_ERROR:
+        print(f"GL ERROR: {err}")
     
     pygame.display.flip()
     clock.tick(60)  # Limitar a 60 FPS
