@@ -260,27 +260,3 @@ skyboxTextures = [
 ]
 ```
 
-## 📝 Notas
-
-- Los shaders personalizados por modelo no se ven afectados por las teclas 0-4, 7-9 (esas son para demostración global)
-- El modo libre es útil para screenshots y exploración detallada
-- La auto-rotación solo funciona en modo órbita
-- Cada modelo tiene sus propios límites de zoom y elevación optimizados
-
-## 🙏 Créditos
-
-**Modelos 3D:**
-- Porsche 911 GT2 - (fuente del modelo)
-- Iron Man assets - (fuente del modelo)
-- Penguin - (fuente del modelo)
-- Blood Dragon - (fuente del modelo)
-- Moon - (fuente del modelo)
-
-**Desarrollo:**
-- Universidad del Valle de Guatemala
-- Curso: Gráficas por Computadora
-- Proyecto: Diorama OpenGL
-
-## 📄 Licencia
-
-Proyecto académico - Universidad del Valle de Guatemala
