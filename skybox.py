@@ -1,8 +1,10 @@
 from numpy import array, float32
+import numpy as np
 import glm
 from OpenGL.GL import * 
 from OpenGL.GL.shaders import compileProgram, compileShader
 import pygame
+from math import pi, atan2, asin
 
 
 skybox_vertex_shader = '''
@@ -37,12 +39,63 @@ out vec4 fragColor;
 
 void main()
 {
-    // Normalizar las coordenadas para evitar artefactos
-    vec3 coords = normalize(texCoords);
-    fragColor = texture(skybox, coords);
+    fragColor = texture(skybox, texCoords);
 }
 
 '''
+
+
+def equirectangular_to_cubemap_face(equirect_surface, face_index, face_size):
+	"""Convierte una imagen equirectangular a una cara del cubemap"""
+	face = pygame.Surface((face_size, face_size))
+	pixels = pygame.surfarray.pixels3d(face)
+	
+	# Obtener los píxeles de la imagen equirectangular
+	eq_pixels = pygame.surfarray.array3d(equirect_surface)
+	eq_width, eq_height = equirect_surface.get_size()
+	
+	# Direcciones para cada cara del cubemap
+	# 0:+X, 1:-X, 2:+Y, 3:-Y, 4:+Z, 5:-Z
+	for y in range(face_size):
+		for x in range(face_size):
+			# Normalizar coordenadas a [-1, 1]
+			u = (2.0 * x / face_size) - 1.0
+			v = (2.0 * y / face_size) - 1.0
+			
+			# Calcular vector 3D según la cara
+			if face_index == 0:  # +X (derecha)
+				vec = np.array([1.0, -v, -u])
+			elif face_index == 1:  # -X (izquierda)
+				vec = np.array([-1.0, -v, u])
+			elif face_index == 2:  # +Y (arriba)
+				vec = np.array([u, 1.0, v])
+			elif face_index == 3:  # -Y (abajo)
+				vec = np.array([u, -1.0, -v])
+			elif face_index == 4:  # +Z (frente)
+				vec = np.array([u, -v, 1.0])
+			else:  # -Z (atrás)
+				vec = np.array([-u, -v, -1.0])
+			
+			# Normalizar vector
+			vec = vec / np.linalg.norm(vec)
+			
+			# Convertir a coordenadas esféricas
+			theta = atan2(vec[0], vec[2])  # ángulo horizontal
+			phi = asin(vec[1])  # ángulo vertical
+			
+			# Mapear a coordenadas UV de la imagen equirectangular
+			eq_u = (theta / (2 * pi)) + 0.5
+			eq_v = (phi / pi) + 0.5
+			
+			# Convertir a coordenadas de píxel
+			eq_x = int(eq_u * (eq_width - 1))
+			eq_y = int(eq_v * (eq_height - 1))
+			
+			# Copiar el píxel
+			pixels[x, y] = eq_pixels[eq_x, eq_y]
+	
+	del pixels  # Liberar el array
+	return face
 
 
 class Skybox(object):
@@ -101,46 +154,48 @@ class Skybox(object):
 		self.texture = glGenTextures(1)
 		glBindTexture(GL_TEXTURE_CUBE_MAP, self.texture)
 		
-		# Si solo hay 1 textura, usarla para todas las caras
+		# Si solo hay 1 textura, convertir de equirectangular a cubemap
 		if len(textureList) == 1:
 			try:
 				texture = pygame.image.load(textureList[0])
+				texture = texture.convert()  # Convertir a RGB
 				
-				# Convertir a formato RGB sin alpha y hacer cuadrada
 				width = texture.get_width()
 				height = texture.get_height()
 				print(f"Skybox image size: {width}x{height}")
 				
-				# Limitar tamaño máximo para cubemap (512 es seguro para la mayoría de GPUs)
-				max_size = 512
-				size = min(width, height, max_size)
+				# Detectar si es equirectangular (ratio ~2:1) o imagen normal
+				aspect_ratio = width / height
+				is_equirect = abs(aspect_ratio - 2.0) < 0.3
 				
-				# Escalar si es necesario
-				if width != size or height != size:
-					print(f"Scaling to {size}x{size}")
-					texture = pygame.transform.scale(texture, (size, size))
+				# Tamaño de cada cara del cubemap
+				face_size = min(512, width // 4 if is_equirect else min(width, height))
+				print(f"Generating cubemap faces at {face_size}x{face_size}")
 				
-				# Convertir a RGB (sin alpha)
-				texture = texture.convert()
-				textureData = pygame.image.tostring(texture, "RGB", False)
-				
-				# Cargar la misma imagen en las 6 caras del cubemap
-				for i in range(6):
-					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-								 0,
-								 GL_RGB,
-								 size,
-								 size,
-								 0,
-								 GL_RGB,
-								 GL_UNSIGNED_BYTE,
-								 textureData)
-					# Verificar errores de OpenGL
-					error = glGetError()
-					if error != GL_NO_ERROR:
-						print(f"OpenGL error on face {i}: {error}")
+				if is_equirect:
+					print("Detected equirectangular format, converting to cubemap...")
+					# Convertir cada cara desde formato equirectangular
+					for i in range(6):
+						face = equirectangular_to_cubemap_face(texture, i, face_size)
+						face_data = pygame.image.tostring(face, "RGB", False)
 						
-				print(f"Skybox loaded successfully: {size}x{size} per face")
+						glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+									 0, GL_RGB, face_size, face_size,
+									 0, GL_RGB, GL_UNSIGNED_BYTE, face_data)
+						print(f"  Face {i} generated")
+				else:
+					# Usar la misma imagen en todas las caras
+					print("Using same image for all faces...")
+					if width != face_size or height != face_size:
+						texture = pygame.transform.scale(texture, (face_size, face_size))
+					
+					textureData = pygame.image.tostring(texture, "RGB", False)
+					for i in range(6):
+						glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+									 0, GL_RGB, face_size, face_size,
+									 0, GL_RGB, GL_UNSIGNED_BYTE, textureData)
+				
+				print(f"✓ Skybox loaded successfully!")
 			except Exception as e:
 				print(f"Error loading skybox: {e}")
 				import traceback

@@ -29,7 +29,18 @@ def clamp(value, min_value, max_value):
 
 pygame.init()
 
+# Inicializar el mixer de audio
+pygame.mixer.init()
 
+# Cargar y reproducir música de fondo
+try:
+    music_path = resource_path("musica.mp3")
+    pygame.mixer.music.load(music_path)
+    pygame.mixer.music.set_volume(0.5)  # Volumen al 50%
+    pygame.mixer.music.play(-1)  # -1 = loop infinito
+    print("✓ Música cargada y reproduciendo!")
+except Exception as e:
+    print(f"⚠ No se pudo cargar la música: {e}")
 
 screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.OPENGL)
 pygame.display.set_caption("OpenGL Renderer 2025")
@@ -179,38 +190,39 @@ def load_model(config):
     return model
 
 
-# Cargar skybox desde imagen panorámica 360°
+# Cargar skybox desde imagen única
 skyboxTextures = [
-    resource_path("pz.png"),  # Imagen panorámica 360°
+    resource_path("paisaje.png"),
 ]
-
+rend.CreateSkybox(skyboxTextures)
+print("✓ Skybox cargado exitosamente!")
 
 MODEL_CONFIGS = [
-    # Plataforma desactivada
-    # {
-    #     "name": "Base Floor",
-    #     "path": resource_path("models", "floor.obj"),
-    #     "fallbackColor": (96, 93, 90, 255),
-    #     "position": glm.vec3(0.0, -0.75, 0.0),
-    #     "rotation": glm.vec3(0, 0, 0),
-    #     "scale": glm.vec3(9.0, 0.05, 9.0),
-    #     "focusOffset": -0.5,
-    #     "defaultOrbitDistance": 7.0,
-    #     "zoomLimits": (3.0, 12.0),
-    #     "defaultElevation": 20.0,
-    #     "elevationLimits": (-5.0, 50.0),
-    #     "focusTarget": False,
-    #     "vertexShader": vertex_shader,
-    #     "fragmentShader": fragment_shader,
-    #     "ambientLight": 0.6,
-    # },
+    {
+        "name": "Base Floor",
+        "path": resource_path("models", "floor.obj"),
+        "textures": [resource_path("cesped.jpg")],
+        "fallbackColor": (120, 120, 120, 255),  # Gris de respaldo
+        "position": glm.vec3(0.0, -0.75, 0.0),
+        "rotation": glm.vec3(0, 0, 0),
+        "scale": glm.vec3(35.0, 0.05, 35.0),  # Plataforma muy grande (35x35)
+        "focusOffset": -0.5,
+        "defaultOrbitDistance": 7.0,
+        "zoomLimits": (3.0, 12.0),
+        "defaultElevation": 20.0,
+        "elevationLimits": (-5.0, 50.0),
+        "focusTarget": False,
+        "vertexShader": vertex_shader,
+        "fragmentShader": fragment_shader,
+        "ambientLight": 0.7,
+    },
     {
         "name": "Porsche 911 GT2",
         "path": resource_path("models", "Porsche_911_GT2.obj"),
         "textures": [resource_path("models", "car", "0000.BMP")],
-        "position": glm.vec3(2.6, -0.25, 1.1),
-        "rotation": glm.vec3(0, -90, 0),
-        "scale": glm.vec3(1.0, 1.0, 1.0),
+        "position": glm.vec3(2.6, 0.50, 20),
+        "rotation": glm.vec3(0, 10, 0),
+        "scale": glm.vec3(4, 4, 4),
         "focusOffset": 0.3,
         "defaultOrbitDistance": 6.0,
         "zoomLimits": (2.5, 10.0),
@@ -222,39 +234,11 @@ MODEL_CONFIGS = [
         "focusKey": pygame.K_F1,
     },
     {
-        "name": "Iron Man Helmet",
-        "path": resource_path("models", "Iron man", "ironman helmet", "obj", "helmet.obj"),
-        "textures": [
-            resource_path(
-                "models",
-                "Iron man",
-                "ironman helmet",
-                "Ironman_helmet",
-                "sourceimages",
-                "IRONMAN_FRONT.jpg",
-            )
-        ],
-        "position": glm.vec3(1.4, 0.1, -1.8),
-        "rotation": glm.vec3(0, 140, 0),
-        "scale": glm.vec3(0.85, 0.85, 0.85),
-        "focusOffset": 0.35,
-        "defaultOrbitDistance": 5.5,
-        "zoomLimits": (2.5, 9.0),
-        "defaultElevation": 12.0,
-        "elevationLimits": (-10.0, 45.0),
-        "fallbackColor": (210, 40, 30, 255),
-        "vertexShader": pulse_shader,
-        "fragmentShader": hologram_shader,
-        "shaderValue": 0.8,
-        "timeScale": 1.0,
-        "focusKey": pygame.K_F2,
-    },
-    {
         "name": "Penguin",
         "path": resource_path("models", "Penguin", "PenguinBaseMesh.obj"),
         "textures": [resource_path("models", "Penguin", "Penguin Diffuse Color.png")],
-        "position": glm.vec3(-1.9, -0.42, -1.2),
-        "rotation": glm.vec3(0, 150, 0),
+        "position": glm.vec3(-1.9, 0.50, -1.2),
+        "rotation": glm.vec3(0, -100, 0),
         "scale": glm.vec3(1.2, 1.2, 1.2),
         "focusOffset": 0.6,
         "defaultOrbitDistance": 4.5,
@@ -263,15 +247,15 @@ MODEL_CONFIGS = [
         "elevationLimits": (-10.0, 55.0),
         "vertexShader": vertex_shader,
         "fragmentShader": toon_shader,
-        "focusKey": pygame.K_F3,
+        "focusKey": pygame.K_F2,
     },
     {
         "name": "Blood Dragon",
         "path": resource_path("models", "Dragon", "blooddragon", "blooddragon.obj"),
         "fallbackColor": (150, 38, 30, 255),
-        "position": glm.vec3(-3.2, -0.1, 2.0),
-        "rotation": glm.vec3(0, 130, 0),
-        "scale": glm.vec3(1.4, 1.4, 1.4),
+        "position": glm.vec3(-5.2, 0, 2.0),
+        "rotation": glm.vec3(0, -130, 0),
+        "scale": glm.vec3(6, 6, 6),
         "focusOffset": 0.8,
         "defaultOrbitDistance": 6.5,
         "zoomLimits": (3.0, 12.0),
@@ -281,14 +265,14 @@ MODEL_CONFIGS = [
         "fragmentShader": plasma_shader,
         "shaderValue": 0.9,
         "timeScale": 0.65,
-        "focusKey": pygame.K_F4,
+        "focusKey": pygame.K_F3,
     },
     {
         "name": "Iron Man",
         "path": resource_path("models", "IRONMAN", "IronMan", "IronMan.obj"),
         "fallbackColor": (200, 45, 28, 255),
-        "position": glm.vec3(0.1, -0.45, -2.6),
-        "rotation": glm.vec3(0, 180, 0),
+        "position": glm.vec3(0.1, 0, -2.6),
+        "rotation": glm.vec3(0, -100, 0),
         "scale": glm.vec3(1.2, 1.2, 1.2),
         "focusOffset": 1.1,
         "defaultOrbitDistance": 7.5,
@@ -298,15 +282,15 @@ MODEL_CONFIGS = [
         "vertexShader": glitch_shader,
         "fragmentShader": matrix_shader,
         "shaderValue": 0.6,
-        "focusKey": pygame.K_F5,
+        "focusKey": pygame.K_F4,
     },
     {
         "name": "Moon",
         "path": resource_path("models", "Moon", "Moon.obj"),
         "textures": [resource_path("models", "Moon", "Moon.jpg")],
-        "position": glm.vec3(0.0, 3.2, 0.0),
-        "rotation": glm.vec3(0, 45, 0),
-        "scale": glm.vec3(0.9, 0.9, 0.9),
+        "position": glm.vec3(0.0,50, 0.0),
+        "rotation": glm.vec3(0, 100, 0),
+        "scale": glm.vec3(10, 10, 10),
         "focusOffset": 0.0,
         "defaultOrbitDistance": 8.0,
         "zoomLimits": (4.0, 14.0),
@@ -316,6 +300,25 @@ MODEL_CONFIGS = [
         "fragmentShader": night_glow_shader,
         "shaderValue": 1.0,
         "timeScale": 0.8,
+        "focusKey": pygame.K_F5,
+    },
+    {
+        "name": "Megamind",
+        "path": resource_path("models", "Megamind", "megamind.obj"),
+        "fallbackColor": (50, 120, 200, 255),  
+        "position": glm.vec3(-20.5, 10, -4.0), 
+        "rotation": glm.vec3(0, 80, 0), 
+        "scale": glm.vec3(10.0, 10.0, 10.0),
+        "focusOffset": 1.0,
+        "defaultOrbitDistance": 7.0,
+        "zoomLimits": (3.0, 12.0),
+        "defaultElevation": 18.0,
+        "elevationLimits": (-5.0, 50.0),
+        "vertexShader": pulse_shader,
+        "fragmentShader": rimlight_shader,
+        "uniformOverrides": {"rimColor": (0.2, 0.5, 1.0)},  # Rim azul brillante
+        "shaderValue": 0.7,
+        "timeScale": 0.9,
         "focusKey": pygame.K_F6,
     },
 ]
@@ -383,6 +386,10 @@ print("\n  Modo Libre (FPS):")
 print("    W/A/S/D - Mover adelante/izquierda/atrás/derecha")
 print("    SPACE/SHIFT - Subir/bajar")
 print("    Mouse - Mirar alrededor (clic derecho para capturar)")
+print("\nMÚSICA:")
+print("  M - Pausar/reanudar música")
+print("  +/= - Subir volumen")
+print("  - - Bajar volumen")
 print("\nOTROS:")
 print("  F - Alternar wireframe")
 print("  ESC - Salir")
@@ -423,6 +430,29 @@ while isRunning:
 
             elif event.key == pygame.K_ESCAPE:
                 isRunning = False
+
+            elif event.key == pygame.K_m:
+                # Pausar/reanudar música
+                if pygame.mixer.music.get_busy():
+                    pygame.mixer.music.pause()
+                    print("🎵 Música: PAUSADA")
+                else:
+                    pygame.mixer.music.unpause()
+                    print("🎵 Música: REPRODUCIENDO")
+
+            elif event.key == pygame.K_MINUS or event.key == pygame.K_KP_MINUS:
+                # Bajar volumen
+                current_volume = pygame.mixer.music.get_volume()
+                new_volume = max(0.0, current_volume - 0.1)
+                pygame.mixer.music.set_volume(new_volume)
+                print(f"🔊 Volumen: {int(new_volume * 100)}%")
+
+            elif event.key == pygame.K_EQUALS or event.key == pygame.K_KP_PLUS:
+                # Subir volumen
+                current_volume = pygame.mixer.music.get_volume()
+                new_volume = min(1.0, current_volume + 0.1)
+                pygame.mixer.music.set_volume(new_volume)
+                print(f"🔊 Volumen: {int(new_volume * 100)}%")
 
             elif event.key == pygame.K_f:
                 rend.ToggleFilledMode()

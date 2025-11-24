@@ -76,6 +76,11 @@ Cada modelo utiliza una combinación única de vertex y fragment shaders:
 - `Shift` - Bajar
 - **Mouse** - Mirar alrededor (el cursor se oculta automáticamente)
 
+### Música
+- `M` - Pausar/reanudar música de fondo
+- `+` / `=` - Subir volumen
+- `-` - Bajar volumen
+
 ### Shaders (aplicar globalmente - para demostración)
 **Vertex Shaders:**
 - `7` - Default
