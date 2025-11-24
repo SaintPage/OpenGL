@@ -1,4 +1,5 @@
 import glm  # pip install PyGLM
+import numbers
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 
@@ -23,6 +24,9 @@ class Renderer(object):
         self.camera = Camera(self.width, self.height)
         self.scene = []
         self.activeShader = None
+        self.defaultVertexShaderSource = None
+        self.defaultFragmentShaderSource = None
+        self.shaderCache = {}
         
         # Shader uniforms
         self.elapsedTime = 0.0
@@ -55,12 +59,25 @@ class Renderer(object):
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
     
     
+    def get_program(self, vertexSource, fragmentSource):
+        if vertexSource is None or fragmentSource is None:
+            return None
+
+        key = (vertexSource, fragmentSource)
+        program = self.shaderCache.get(key)
+        if program is None:
+            program = compileProgram(
+                compileShader(vertexSource, GL_VERTEX_SHADER),
+                compileShader(fragmentSource, GL_FRAGMENT_SHADER)
+            )
+            self.shaderCache[key] = program
+        return program
+
+
     def SetShaders(self, vertexShader, fragmentShader):
-        if vertexShader is not None and fragmentShader is not None:
-            self.activeShader = compileProgram(compileShader(vertexShader, GL_VERTEX_SHADER),
-                                               compileShader(fragmentShader, GL_FRAGMENT_SHADER))
-        else:
-            self.activeShader = None
+        self.defaultVertexShaderSource = vertexShader
+        self.defaultFragmentShaderSource = fragmentShader
+        self.activeShader = self.get_program(vertexShader, fragmentShader)
     
 
         
@@ -79,42 +96,75 @@ class Renderer(object):
         
         # NO llamar camera.Update() - la viewMatrix ya está configurada en el loop principal
 
-        glUseProgram(self.activeShader)
-        
-        # Pass uniforms to shaders
-        if self.activeShader is not None:
-            # Time and value
-            timeLocation = glGetUniformLocation(self.activeShader, "time")
-            if timeLocation != -1:
-                glUniform1f(timeLocation, self.elapsedTime)
-            
-            valueLocation = glGetUniformLocation(self.activeShader, "value")
-            if valueLocation != -1:
-                glUniform1f(valueLocation, self.value)
-            
-            # Camera matrices
-            glUniformMatrix4fv(glGetUniformLocation(self.activeShader, "viewMatrix"),
-                              1, GL_FALSE, glm.value_ptr(self.camera.viewMatrix))
-            
-            glUniformMatrix4fv(glGetUniformLocation(self.activeShader, "projectionMatrix"),
-                              1, GL_FALSE, glm.value_ptr(self.camera.projectionMatrix))
-            
-            # Lighting
-            glUniform3fv(glGetUniformLocation(self.activeShader, "pointLight"),
-                        1, glm.value_ptr(self.pointLight))
-            
-            glUniform1f(glGetUniformLocation(self.activeShader, "ambientLight"), self.ambientLight)
-            
-            # Texture samplers
-            glUniform1i(glGetUniformLocation(self.activeShader, "tex0"), 0)
-
         for obj in self.scene:
-            if self.activeShader is not None:
-                modelMatrix = obj.GetModelMatrix()
-                glUniformMatrix4fv(
-                    glGetUniformLocation(self.activeShader, "modelMatrix"),
-                    1,
-                    GL_FALSE,
-                    glm.value_ptr(modelMatrix)
-                )
+            if not getattr(obj, "visible", True):
+                continue
+
+            vertexSource = getattr(obj, "vertexShaderSource", None) or self.defaultVertexShaderSource
+            fragmentSource = getattr(obj, "fragmentShaderSource", None) or self.defaultFragmentShaderSource
+
+            program = self.get_program(vertexSource, fragmentSource)
+            if program is None:
+                continue
+
+            glUseProgram(program)
+
+            timeScale = getattr(obj, "timeScale", 1.0)
+            shaderValue = getattr(obj, "shaderValue", None)
+            timeValue = self.elapsedTime * timeScale
+            valueToUse = shaderValue if shaderValue is not None else self.value
+
+            timeLocation = glGetUniformLocation(program, "time")
+            if timeLocation != -1:
+                glUniform1f(timeLocation, timeValue)
+
+            valueLocation = glGetUniformLocation(program, "value")
+            if valueLocation != -1:
+                glUniform1f(valueLocation, valueToUse)
+
+            viewLocation = glGetUniformLocation(program, "viewMatrix")
+            if viewLocation != -1:
+                glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm.value_ptr(self.camera.viewMatrix))
+
+            projLocation = glGetUniformLocation(program, "projectionMatrix")
+            if projLocation != -1:
+                glUniformMatrix4fv(projLocation, 1, GL_FALSE, glm.value_ptr(self.camera.projectionMatrix))
+
+            pointLightValue = getattr(obj, "pointLightOverride", None)
+            lightLocation = glGetUniformLocation(program, "pointLight")
+            if lightLocation != -1:
+                lightVec = pointLightValue if pointLightValue is not None else self.pointLight
+                glUniform3fv(lightLocation, 1, glm.value_ptr(lightVec))
+
+            ambientOverride = getattr(obj, "ambientOverride", None)
+            ambientLocation = glGetUniformLocation(program, "ambientLight")
+            if ambientLocation != -1:
+                ambientValue = ambientOverride if ambientOverride is not None else self.ambientLight
+                glUniform1f(ambientLocation, ambientValue)
+
+            texLocation = glGetUniformLocation(program, "tex0")
+            if texLocation != -1:
+                glUniform1i(texLocation, 0)
+
+            for uniformName, uniformValue in getattr(obj, "uniformOverrides", {}).items():
+                location = glGetUniformLocation(program, uniformName)
+                if location == -1:
+                    continue
+
+                if isinstance(uniformValue, numbers.Number):
+                    glUniform1f(location, float(uniformValue))
+                elif isinstance(uniformValue, (tuple, list)):
+                    length = len(uniformValue)
+                    if length == 2:
+                        glUniform2f(location, *uniformValue)
+                    elif length == 3:
+                        glUniform3f(location, *uniformValue)
+                    elif length == 4:
+                        glUniform4f(location, *uniformValue)
+
+            modelMatrix = obj.GetModelMatrix()
+            modelLocation = glGetUniformLocation(program, "modelMatrix")
+            if modelLocation != -1:
+                glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm.value_ptr(modelMatrix))
+
             obj.Render()

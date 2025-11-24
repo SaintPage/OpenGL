@@ -24,6 +24,13 @@ class Model(object):
 		self.zoomLimits = (1.5, 25.0)
 		self.defaultElevation = 15.0
 		self.elevationLimits = (-15.0, 60.0)
+		self.vertexShaderSource = None
+		self.fragmentShaderSource = None
+		self.shaderValue = None
+		self.timeScale = 1.0
+		self.uniformOverrides = {}
+		self.pointLightOverride = None
+		self.ambientOverride = None
 
 		self.visible = True
 
@@ -46,6 +53,17 @@ class Model(object):
 
 
 	def BuildBuffers(self):
+
+		def resolve_component(index, data, default):
+			if index == 0 or not data:
+				return default
+			if index > 0:
+				resolved_index = index - 1
+			else:
+				resolved_index = len(data) + index
+			if resolved_index < 0 or resolved_index >= len(data):
+				return default
+			return data[resolved_index]
 
 		# First pass: calculate bounding box and normalize to unit size
 		if len(self.objFile.vertices) > 0:
@@ -94,9 +112,12 @@ class Model(object):
 			faceNormals = []
 
 			for i in range(len(face)):
-				facePositions.append( self.objFile.vertices [ face[i][0] - 1 ] )
-				faceTexCoords.append( self.objFile.texCoords[ face[i][1] - 1 ] )
-				faceNormals.append( self.objFile.normals[ face[i][2] - 1 ] )
+				pos = resolve_component(face[i][0], self.objFile.vertices, [0.0, 0.0, 0.0])
+				tc = resolve_component(face[i][1], self.objFile.texCoords, [0.0, 0.0])
+				norm = resolve_component(face[i][2], self.objFile.normals, [0.0, 1.0, 0.0])
+				facePositions.append(pos)
+				faceTexCoords.append(tc)
+				faceNormals.append(norm)
 
 
 			for value in facePositions[0]: positions.append(value)

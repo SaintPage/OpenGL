@@ -197,3 +197,107 @@ void main()
 }
 
 '''
+
+# CUSTOM FRAGMENT SHADER: Rim Light with warm highlights
+rimlight_shader = '''
+#version 330 core
+
+in vec2 fragTexCoords;
+in vec3 fragNormal;
+in vec4 fragPosition;
+
+out vec4 fragColor;
+
+uniform sampler2D tex0;
+uniform vec3 pointLight;
+uniform float ambientLight;
+uniform vec3 rimColor;
+
+void main()
+{
+    vec3 N = normalize(fragNormal);
+    vec3 L = normalize(pointLight - fragPosition.xyz);
+    vec3 V = normalize(-fragPosition.xyz);
+
+    float diff = max(dot(N, L), 0.0);
+    float rim = pow(1.0 - max(dot(N, V), 0.0), 2.5);
+
+    vec3 baseColor = texture(tex0, fragTexCoords).rgb;
+    vec3 lighting = baseColor * (ambientLight + diff * 0.9);
+    lighting += rim * rimColor;
+
+    fragColor = vec4(lighting, 1.0);
+}
+
+'''
+
+# CUSTOM FRAGMENT SHADER: Toon shading with banded diffuse
+toon_shader = '''
+#version 330 core
+
+in vec2 fragTexCoords;
+in vec3 fragNormal;
+in vec4 fragPosition;
+
+out vec4 fragColor;
+
+uniform sampler2D tex0;
+uniform vec3 pointLight;
+uniform float ambientLight;
+
+void main()
+{
+    vec3 N = normalize(fragNormal);
+    vec3 L = normalize(pointLight - fragPosition.xyz);
+
+    float intensity = max(dot(N, L), 0.0);
+    float levels = 4.0;
+    float toon = floor(intensity * levels) / (levels - 1.0);
+
+    vec3 baseColor = texture(tex0, fragTexCoords).rgb;
+    vec3 shaded = baseColor * (ambientLight + toon * 0.8);
+
+    vec3 V = normalize(-fragPosition.xyz);
+    float rim = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+    shaded += rim * vec3(0.1, 0.2, 0.4);
+
+    fragColor = vec4(shaded, 1.0);
+}
+
+'''
+
+# CUSTOM FRAGMENT SHADER: Night glow with emissive pulses
+night_glow_shader = '''
+#version 330 core
+
+in vec2 fragTexCoords;
+in vec3 fragNormal;
+in vec4 fragPosition;
+
+out vec4 fragColor;
+
+uniform sampler2D tex0;
+uniform vec3 pointLight;
+uniform float ambientLight;
+uniform float time;
+uniform float value;
+
+void main()
+{
+    vec3 N = normalize(fragNormal);
+    vec3 L = normalize(pointLight - fragPosition.xyz);
+    vec3 V = normalize(-fragPosition.xyz);
+
+    float diff = max(dot(N, L), 0.0);
+    float fresnel = pow(1.0 - max(dot(N, V), 0.0), 5.0);
+
+    vec3 baseColor = texture(tex0, fragTexCoords).rgb;
+    float pulse = (sin(time * 1.5 + fragPosition.y * 2.0) * 0.5 + 0.5) * value;
+
+    vec3 lighting = baseColor * (ambientLight + diff * 0.7);
+    vec3 glow = vec3(0.2, 0.4, 0.7) * (fresnel * 0.6 + pulse * 0.8);
+
+    fragColor = vec4(lighting + glow, 1.0);
+}
+
+'''
