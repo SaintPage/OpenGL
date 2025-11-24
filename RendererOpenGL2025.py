@@ -179,35 +179,31 @@ def load_model(config):
     return model
 
 
+# Cargar skybox desde imagen panorámica 360°
 skyboxTextures = [
-    resource_path("skybox", "right.jpg"),
-    resource_path("skybox", "left.jpg"),
-    resource_path("skybox", "top.jpg"),
-    resource_path("skybox", "bottom.jpg"),
-    resource_path("skybox", "front.jpg"),
-    resource_path("skybox", "back.jpg"),
+    resource_path("pz.png"),  # Imagen panorámica 360°
 ]
-rend.CreateSkybox(skyboxTextures)
-print("✓ Skybox cargado exitosamente!")
+
 
 MODEL_CONFIGS = [
-    {
-        "name": "Base Floor",
-        "path": resource_path("models", "floor.obj"),
-        "fallbackColor": (96, 93, 90, 255),
-        "position": glm.vec3(0.0, -0.75, 0.0),
-        "rotation": glm.vec3(0, 0, 0),
-        "scale": glm.vec3(9.0, 0.05, 9.0),
-        "focusOffset": -0.5,
-        "defaultOrbitDistance": 7.0,
-        "zoomLimits": (3.0, 12.0),
-        "defaultElevation": 20.0,
-        "elevationLimits": (-5.0, 50.0),
-        "focusTarget": False,
-        "vertexShader": vertex_shader,
-        "fragmentShader": fragment_shader,
-        "ambientLight": 0.6,
-    },
+    # Plataforma desactivada
+    # {
+    #     "name": "Base Floor",
+    #     "path": resource_path("models", "floor.obj"),
+    #     "fallbackColor": (96, 93, 90, 255),
+    #     "position": glm.vec3(0.0, -0.75, 0.0),
+    #     "rotation": glm.vec3(0, 0, 0),
+    #     "scale": glm.vec3(9.0, 0.05, 9.0),
+    #     "focusOffset": -0.5,
+    #     "defaultOrbitDistance": 7.0,
+    #     "zoomLimits": (3.0, 12.0),
+    #     "defaultElevation": 20.0,
+    #     "elevationLimits": (-5.0, 50.0),
+    #     "focusTarget": False,
+    #     "vertexShader": vertex_shader,
+    #     "fragmentShader": fragment_shader,
+    #     "ambientLight": 0.6,
+    # },
     {
         "name": "Porsche 911 GT2",
         "path": resource_path("models", "Porsche_911_GT2.obj"),

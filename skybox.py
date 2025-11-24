@@ -37,7 +37,9 @@ out vec4 fragColor;
 
 void main()
 {
-    fragColor = texture(skybox, texCoords);
+    // Normalizar las coordenadas para evitar artefactos
+    vec3 coords = normalize(texCoords);
+    fragColor = texture(skybox, coords);
 }
 
 '''
@@ -46,6 +48,7 @@ void main()
 class Skybox(object):
 	def __init__(self, textureList):
 		self.cameraRef = None
+		self.cubemapTexture = None  # Para environment mapping
 		
 		skyboxVertices = [-1.0,  1.0, -1.0,
 						  -1.0, -1.0, -1.0,
@@ -98,19 +101,65 @@ class Skybox(object):
 		self.texture = glGenTextures(1)
 		glBindTexture(GL_TEXTURE_CUBE_MAP, self.texture)
 		
-		for i in range(len(textureList)):
-			texture = pygame.image.load(textureList[i])
-			textureData = pygame.image.tostring(texture, "RGB", False)
-			
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-						 0,
-						 GL_RGB,
-						 texture.get_width(),
-						 texture.get_height(),
-						 0,
-						 GL_RGB,
-						 GL_UNSIGNED_BYTE,
-						 textureData)
+		# Si solo hay 1 textura, usarla para todas las caras
+		if len(textureList) == 1:
+			try:
+				texture = pygame.image.load(textureList[0])
+				
+				# Convertir a formato RGB sin alpha y hacer cuadrada
+				width = texture.get_width()
+				height = texture.get_height()
+				print(f"Skybox image size: {width}x{height}")
+				
+				# Limitar tamaño máximo para cubemap (512 es seguro para la mayoría de GPUs)
+				max_size = 512
+				size = min(width, height, max_size)
+				
+				# Escalar si es necesario
+				if width != size or height != size:
+					print(f"Scaling to {size}x{size}")
+					texture = pygame.transform.scale(texture, (size, size))
+				
+				# Convertir a RGB (sin alpha)
+				texture = texture.convert()
+				textureData = pygame.image.tostring(texture, "RGB", False)
+				
+				# Cargar la misma imagen en las 6 caras del cubemap
+				for i in range(6):
+					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+								 0,
+								 GL_RGB,
+								 size,
+								 size,
+								 0,
+								 GL_RGB,
+								 GL_UNSIGNED_BYTE,
+								 textureData)
+					# Verificar errores de OpenGL
+					error = glGetError()
+					if error != GL_NO_ERROR:
+						print(f"OpenGL error on face {i}: {error}")
+						
+				print(f"Skybox loaded successfully: {size}x{size} per face")
+			except Exception as e:
+				print(f"Error loading skybox: {e}")
+				import traceback
+				traceback.print_exc()
+		else:
+			# Cargar 6 texturas diferentes (modo original)
+			for i in range(len(textureList)):
+				texture = pygame.image.load(textureList[i])
+				textureData = pygame.image.tostring(texture, "RGB", False)
+				
+				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+							 0,
+							 GL_RGB,
+							 texture.get_width(),
+							 texture.get_height(),
+							 0,
+							 GL_RGB,
+							 GL_UNSIGNED_BYTE,
+							 textureData)
 			
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
@@ -118,6 +167,8 @@ class Skybox(object):
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
 		
+		# Guardar referencia para environment mapping
+		self.cubemapTexture = self.texture
 
 	def Render(self):
 		if self.shaders == None:
